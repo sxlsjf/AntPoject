@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+       <project name="demo" default="deleteWar" basedir=".">
+       <property name="build" value="${basedir}/build"/>
+       <property name="build.class" value="${build}/classes"/>
+       <property name="src" value="${basedir}/src"/>
+       <property name="web" value="${basedir}/web"/>
+       <property name="lib" value="${web}/WEB-INF/lib"/>
+
+       <!--请将下面的路径改为你本地的路径-->
+        <property name="webserver" value="D:\JAVA EE\apache-tomcat-8.5.34"/>
+
+        <!--定义CLASSPACH,编译时用到你外部加入的包-->
+        <path id="classpath">
+            <pathelement location="${src}"/>
+            <fileset dir="${lib}" includes="***.jar"/>
+        </path>
+
+        <!--删除任务-->
+        <target name="clean" description="删除">
+            <echo message="删除目录"/>
+            <delete dir="${build}"/>
+        </target>
+
+        <!--创建一个临时目录-->
+        <target name="init" description="创建目录" depends="clean">
+            <echo message="创建目录--以执行"/>
+            <mkdir dir="${build.class}"/>
+        </target>
+
+
+        <!--编译java源文件-->
+        <target name="compile" description="编译文件" depends="init">
+            <echo message="编译文件"/>
+            <javac srcdir="${src}" destdir="${build.class}">
+                <classpath refid="classpath"/>
+                <compilerarg line="-encoding UTF-8 "/>
+            </javac>
+        </target>
+
+        <!--打成WAR包-->
+        <target name="generwar" depends="compile">
+            <echo message="打成WAR"/>
+            <war destfile="${build}/${ant.project.name}.war" webxml="${web}/WEB-INF/web.xml">
+                <fileset dir="web"/>
+                <lib dir="${lib}"/>
+                <classes dir="${build.class}"/>
+            </war>
+        </target>
+
+
+        <!--把WAR放到一个指定目录，这里是直接布署到TOMCAT服务器-->
+        <target name="fabu" depends="generwar" description="发布">
+            <copy file="${build}/${ant.project.name}.war" todir="${webserver}/webapps"/>
+        </target>
+
+
+        <!--把打好的WAR删除-->
+        <target name="deleteWar" depends="fabu" description="删除服务器上的war">
+            <delete dir="${build}"/>
+        </target>
+
+        <!--停止tomcat-->
+        <target name="stop_tomcat">
+            <echo>停止tomcat</echo>
+            <exec executable="cmd" dir="${webserver}/bin" failonerror="false" append="true">
+                <env key="CATALINA_HOME" path="${webserver}"/>
+                <arg value="/c shutdown.bat"/>
+            </exec>
+        </target>
+
+      <!--启动tomcat-->
+      <!--这里做的主要是部署本地Tomcat服务器的过程，差不多的思路是先把war发布到webapps目录下，接着再重启服务器-->
+      <target name="start_tomcat" depends="fabu,stop_tomcat">
+             <echo>启动tomcat</echo>
+             <exec executable="cmd" dir="${webserver}/bin" failonerror="false" append="true">
+                 <env key="CATALINA_HOME" path="${webserver}"/>
+                 <arg value="/c startup.bat"/>
+             </exec>
+         </target>
+
+         <!--部署到远程服务器-->
+         <!--这里模拟了一个利用ant部署到远程服务器的过程，server是ftp服务器IP地址，userid和password是ftp服务器的账号
+    和密码，remotedir是你在建立服务器时，为服务器建立的目录，我建立的是D:\apache-tomcat-8.0.43\webapps，fileset
+    是你要上传的文件，要利用ftp上传需要导入两个jar包，commons-net-1.4.0.jar、jakarta-oro-2.0.8.jar
+   -->
+        <!-- <target name="deploy" depends="generwar">
+             <ftp server="127.0.0.1"
+                  userid="admin" password="123456" remotedir="/">
+                 <fileset dir="${build}">
+                     <include name="*.war"/>
+                 </fileset>
+             </ftp>
+
+         </target>-->
+
+    <target name="scp-file-deploy" depends="generwar">
+        <scp file="${build}/${ant.project.name}.war"
+             todir="root:root@192.168.0.243:/usr/local/ant"
+             trust="true" />
+
+    </target>
+
+
+
+<!--
+    <target name="scp-folder">
+        <scp todir="uu:123@192.168.0.175:/home/uu/fetch" <span style="color: #ff0000;">trust="true"</span>
+        >
+        <fileset dir="jar"/>
+    </scp>
+    </target>-->
+
+    <target name="sshexec">
+        <sshexec host="192.168.0.243"
+                 username="root"
+                 password="root"
+                 command="touch somefile;ls;df -h;"
+                 trust="true"/>
+    </target>
+</project>
